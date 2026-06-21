@@ -3,10 +3,11 @@ use std::thread;
 
 use hudhook::Hudhook;
 use hudhook::hooks::dx9::ImguiDx9Hooks;
-use hudhook::windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
-use hudhook::windows::Win32::Graphics::Direct3D9::*;
-use hudhook::windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use hudhook::windows::Win32::UI::WindowsAndMessaging::*;
+use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Graphics::Direct3D9::*;
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::core::PCWSTR;
 
 use imbdmlive::config::Config;
 use imbdmlive::state::OverlayState;
@@ -42,15 +43,15 @@ fn main() {
             style: CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc: Some(wndproc),
             hInstance: hinstance,
-            lpszClassName: hudhook::windows::core::PCWSTR(class_name.as_ptr()),
+            lpszClassName: PCWSTR(class_name.as_ptr()),
             ..Default::default()
         };
         assert!(RegisterClassExW(&wc) != 0, "RegisterClassExW failed");
 
         let hwnd = CreateWindowExW(
             WINDOW_EX_STYLE::default(),
-            hudhook::windows::core::PCWSTR(class_name.as_ptr()),
-            hudhook::windows::core::PCWSTR(window_title.as_ptr()),
+            PCWSTR(class_name.as_ptr()),
+            PCWSTR(window_title.as_ptr()),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             100,
             100,

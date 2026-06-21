@@ -1,12 +1,12 @@
 use hudhook::imgui::ClipboardBackend;
-use hudhook::windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
-use hudhook::windows::Win32::System::DataExchange::{
+use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
+use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, SetClipboardData,
 };
-use hudhook::windows::Win32::System::Memory::{
+use windows::Win32::System::Memory::{
     GMEM_MOVEABLE, GMEM_ZEROINIT, GlobalAlloc, GlobalLock, GlobalUnlock,
 };
-use hudhook::windows::Win32::System::Ole::CF_UNICODETEXT;
+use windows::Win32::System::Ole::CF_UNICODETEXT;
 
 pub struct WindowsClipboard;
 

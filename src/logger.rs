@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use hudhook::windows::Win32::System::SystemInformation::GetLocalTime;
+use windows::Win32::System::SystemInformation::GetLocalTime;
 
 struct Logger {
     file: Mutex<Option<File>>,

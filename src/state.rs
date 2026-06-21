@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
-use hudhook::windows::Win32::System::SystemInformation::GetLocalTime;
+use windows::Win32::System::SystemInformation::GetLocalTime;
 
 /// What kind of line a [`DanmakuLine`] is.
 #[derive(Clone, Copy, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 use hudhook::Hudhook;
 use hudhook::hooks::dx9::ImguiDx9Hooks;
-use hudhook::windows::Win32::Foundation::HINSTANCE;
+use windows::Win32::Foundation::HINSTANCE;
 
 use crate::ui::OverlayUi;
 

@@ -4,8 +4,8 @@ use std::sync::mpsc;
 use std::sync::{Arc, OnceLock};
 use std::thread;
 
-use hudhook::windows::Win32::Foundation::HINSTANCE;
-use hudhook::windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
+use windows::Win32::Foundation::HINSTANCE;
+use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 mod backend;
 pub mod config;
