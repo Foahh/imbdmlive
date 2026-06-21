@@ -8,11 +8,11 @@ use hudhook::windows::Win32::Foundation::HINSTANCE;
 use hudhook::windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 mod backend;
-mod config;
+pub mod config;
 mod danmaku;
-mod logger;
-mod state;
-mod ui;
+pub mod logger;
+pub mod state;
+pub mod ui;
 
 use backend::RenderBackend;
 
