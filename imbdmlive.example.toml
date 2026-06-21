@@ -1,0 +1,24 @@
+# Bilibili live room id to connect to.
+room_id = "1597760"
+
+# Optional cookie string. Leave unset or use an empty value to let blivedm try browser auto-detection.
+# cookies = ""
+
+# Overlay font size in pixels.
+font_size = 20.0
+
+# Overlay window background opacity, from 0.0 to 1.0.
+opacity = 0.55
+
+# Overlay window top-left position in pixels.
+pos = [16.0, 16.0]
+
+# Overlay window size in pixels.
+size = [420.0, 320.0]
+
+# Key that toggles the config window.
+# Supported examples: Insert, Ins, F1-F12, Home, End, PageUp, PageDown.
+toggle_key = "Insert"
+
+# Global log level: off, error, warn, info, debug, trace.
+log_level = "info"

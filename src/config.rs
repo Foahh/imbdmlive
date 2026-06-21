@@ -25,7 +25,7 @@ pub struct Config {
     pub size: [f32; 2],
 
     /// Key that toggles the config window.
-    /// One of the names in [`toggle_key_to_imgui`] (default `F8`).
+    /// One of the names in [`toggle_key_to_imgui`] (default `Insert`).
     pub toggle_key: String,
 
     /// Global log level. One of: off, error, warn, info, debug, trace.
@@ -41,7 +41,7 @@ impl Default for Config {
             opacity: 0.55,
             pos: [16.0, 16.0],
             size: [420.0, 320.0],
-            toggle_key: "F8".to_string(),
+            toggle_key: "Insert".to_string(),
             log_level: "info".to_string(),
         }
     }

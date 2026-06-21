@@ -65,7 +65,8 @@ impl OverlayUi {
         reconnect_tx: ReconnectSender,
         cfg: Config,
     ) -> Self {
-        let toggle_key = toggle_key_to_imgui(&cfg.toggle_key).unwrap_or(hudhook::imgui::Key::F8);
+        let toggle_key =
+            toggle_key_to_imgui(&cfg.toggle_key).unwrap_or(hudhook::imgui::Key::Insert);
         Self {
             room_buf: cfg.room_id.clone(),
             cookies_buf: cfg.cookies.clone().unwrap_or_default(),
