@@ -30,8 +30,8 @@ fn main() {
         let hmodule = GetModuleHandleW(None).expect("GetModuleHandleW");
         let hinstance = HINSTANCE(hmodule.0);
 
-        let class_name = to_wide("BDMLiveTest");
-        let window_title = to_wide("BDMLive UI Test  [F8 = toggle config]");
+        let class_name = to_wide("BDMLive");
+        let window_title = to_wide("BDMLive");
 
         let wc = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,

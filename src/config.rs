@@ -14,8 +14,6 @@ pub struct Config {
     /// When `None`, blivedm attempts browser auto-detection;
     pub cookies: Option<String>,
 
-    /// CJK TTF/TTC font. Defaults to Microsoft YaHei.
-    pub font_path: String,
     /// Font size in pixels.
     pub font_size: f32,
 
@@ -36,9 +34,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            room_id: "21452505".to_string(),
+            room_id: "1597760".to_string(),
             cookies: None,
-            font_path: r"C:\Windows\Fonts\msyh.ttc".to_string(),
             font_size: 20.0,
             opacity: 0.55,
             pos: [16.0, 16.0],
@@ -89,7 +86,7 @@ impl Config {
     }
 }
 
-/// Map a configured key name to an imgui [`hudhook::imgui::Key`]. 
+/// Map a configured key name to an imgui [`hudhook::imgui::Key`].
 /// Returns `None` for unknown names.
 pub fn toggle_key_to_imgui(name: &str) -> Option<hudhook::imgui::Key> {
     use hudhook::imgui::Key;

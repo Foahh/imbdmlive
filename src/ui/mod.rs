@@ -2,13 +2,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
-use hudhook::imgui::{
-    Condition, Context, FontConfig, FontGlyphRanges, FontSource, Io, StyleColor, Ui, WindowFlags,
-};
+use hudhook::imgui::{Condition, Context, Io, StyleColor, Ui, WindowFlags};
 use hudhook::{ImguiRenderLoop, MessageFilter, RenderContext};
 
-use crate::config::{Config, toggle_key_to_imgui};
+use crate::config::{toggle_key_to_imgui, Config};
 use crate::state::{LineKind, OverlayState};
+
+mod fonts;
 
 /// Channel the UI uses to ask the supervisor to (re)connect with a new config.
 pub type ReconnectSender = Sender<Config>;
@@ -56,8 +56,7 @@ impl OverlayUi {
         reconnect_tx: ReconnectSender,
         cfg: Config,
     ) -> Self {
-        let toggle_key = toggle_key_to_imgui(&cfg.toggle_key)
-            .unwrap_or(hudhook::imgui::Key::F8);
+        let toggle_key = toggle_key_to_imgui(&cfg.toggle_key).unwrap_or(hudhook::imgui::Key::F8);
         Self {
             room_buf: cfg.room_id.clone(),
             cookies_buf: cfg.cookies.clone().unwrap_or_default(),
@@ -74,7 +73,11 @@ impl OverlayUi {
     fn draw_danmaku(&mut self, ui: &Ui, config_open: bool) {
         // When the config window is open, let the user drag/resize and remember
         // the result; otherwise keep it pinned and non-interactive.
-        let cond = if config_open { Condition::FirstUseEver } else { Condition::Always };
+        let cond = if config_open {
+            Condition::FirstUseEver
+        } else {
+            Condition::Always
+        };
         let mut flags = WindowFlags::NO_TITLE_BAR
             | WindowFlags::NO_COLLAPSE
             | WindowFlags::NO_SCROLLBAR
@@ -98,7 +101,7 @@ impl OverlayUi {
             .flags(flags)
             .build(|| {
                 if let Ok(s) = state.lock() {
-                    let status = if s.connected { "●" } else { "○" };
+                    let status = if s.connected { "已连接" } else { "未连接" };
                     let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
                     ui.text(format!(
                         "{status} 房间 {}  在线 {}",
@@ -156,10 +159,6 @@ impl OverlayUi {
                 ui.separator();
 
                 if ui.button("保存") {
-                    self.apply_and_save(false);
-                }
-                ui.same_line();
-                if ui.button("保存并重连") {
                     self.apply_and_save(true);
                 }
                 ui.same_line();
@@ -168,25 +167,29 @@ impl OverlayUi {
                 }
 
                 ui.separator();
-                let connected = self
-                    .state
-                    .lock()
-                    .map(|s| s.connected)
-                    .unwrap_or(false);
-                ui.text(if connected { "状态: 已连接" } else { "状态: 未连接" });
+                let connected = self.state.lock().map(|s| s.connected).unwrap_or(false);
+                ui.text(if connected {
+                    "状态: 已连接"
+                } else {
+                    "状态: 未连接"
+                });
                 if !self.font_loaded {
                     let _c = ui.push_style_color(StyleColor::Text, COL_GIFT);
-                    ui.text_wrapped("警告: 未能加载中文字体");
+                    ui.text_wrapped("警告: 未能加载系统字体");
                 }
             });
     }
 
-    /// Push the edited values into `self.cfg`, persist to disk, and optionally
-    /// request a reconnect.
+    /// Push the edited values into `self.cfg`, 
+    /// persist to disk, and optionally request a reconnect.
     fn apply_and_save(&mut self, reconnect: bool) {
         self.cfg.room_id = self.room_buf.trim().to_string();
         let cookies = self.cookies_buf.trim();
-        self.cfg.cookies = if cookies.is_empty() { None } else { Some(cookies.to_string()) };
+        self.cfg.cookies = if cookies.is_empty() {
+            None
+        } else {
+            Some(cookies.to_string())
+        };
         self.cfg.max_lines = self.max_lines_edit.max(1) as usize;
 
         // Apply live visual settings immediately.
@@ -219,25 +222,7 @@ impl OverlayUi {
 
 impl ImguiRenderLoop for OverlayUi {
     fn initialize<'a>(&'a mut self, ctx: &mut Context, _rc: &'a mut dyn RenderContext) {
-        // Load a CJK-capable font; without it Chinese renders as boxes.
-        match std::fs::read(&self.cfg.font_path) {
-            Ok(bytes) => {
-                ctx.fonts().add_font(&[FontSource::TtfData {
-                    data: &bytes,
-                    size_pixels: self.cfg.font_size,
-                    config: Some(FontConfig {
-                        glyph_ranges: FontGlyphRanges::chinese_simplified_common(),
-                        ..FontConfig::default()
-                    }),
-                }]);
-                self.font_loaded = true;
-            }
-            Err(e) => {
-                log::warn!("Could not load font {}: {e}", self.cfg.font_path);
-                ctx.fonts().add_font(&[FontSource::DefaultFontData { config: None }]);
-                self.font_loaded = false;
-            }
-        }
+        self.font_loaded = fonts::add_system_fonts(ctx, self.cfg.font_size);
     }
 
     fn render(&mut self, ui: &mut Ui) {
