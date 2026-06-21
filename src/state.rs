@@ -70,62 +70,63 @@ impl OverlayState {
         format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond)
     }
 
-    fn push(&mut self, line: DanmakuLine) {
-        self.lines.push_back(line);
+    fn push(&mut self, line: DanmakuLine) -> DanmakuLine {
+        self.lines.push_back(line.clone());
+        line
     }
 
-    pub fn push_danmu(&mut self, user: String, text: String) {
+    pub fn push_danmu(&mut self, user: String, text: String) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::Danmu,
             timestamp: Self::timestamp(),
             user,
             text,
-        });
+        })
     }
 
-    pub fn push_gift(&mut self, user: String, gift: String, num: String) {
+    pub fn push_gift(&mut self, user: String, gift: String, num: String) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::Gift,
             timestamp: Self::timestamp(),
             user,
             text: format!("送出 {} × {}", gift, num),
-        });
+        })
     }
 
-    pub fn push_super_chat(&mut self, user: String, text: String) {
+    pub fn push_super_chat(&mut self, user: String, text: String) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::SuperChat,
             timestamp: Self::timestamp(),
             user,
             text,
-        });
+        })
     }
 
-    pub fn push_guard(&mut self, user: String, text: String) {
+    pub fn push_guard(&mut self, user: String, text: String) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::Guard,
             timestamp: Self::timestamp(),
             user,
             text,
-        });
+        })
     }
 
-    pub fn push_enter(&mut self, user: String) {
+    pub fn push_enter(&mut self, user: String) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::Enter,
             timestamp: Self::timestamp(),
             user,
             text: "进入直播间".to_string(),
-        });
+        })
     }
 
-    pub fn push_system(&mut self, text: impl Into<String>) {
+    pub fn push_system(&mut self, text: impl Into<String>) -> DanmakuLine {
         self.push(DanmakuLine {
             kind: LineKind::System,
             timestamp: Self::timestamp(),
             user: String::new(),
             text: text.into(),
-        });
+        })
     }
 
     pub fn set_online(&mut self, count: u64, online_count: u64) {

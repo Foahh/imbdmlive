@@ -274,7 +274,9 @@ impl OverlayUi {
 
         if reconnect {
             if let Ok(mut s) = self.state.lock() {
-                s.reset(self.cfg.room_id.clone());
+                if s.room_id != self.cfg.room_id {
+                    s.reset(self.cfg.room_id.clone());
+                }
             }
             let sent = self
                 .reconnect_tx
@@ -307,7 +309,7 @@ impl OverlayUi {
                     3 => s.push_guard(format!("测试舰长{i}"), "开通舰长".to_string()),
                     4 => s.push_enter(format!("测试进场{i}")),
                     _ => s.push_system(format!("第 {i} 条系统消息，用于测试滚动行为")),
-                }
+                };
             }
         }
     }

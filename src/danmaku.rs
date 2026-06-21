@@ -1,3 +1,6 @@
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -8,7 +11,7 @@ use blivedm::client::websocket::BiliLiveClient;
 use futures::channel::mpsc::{self, TryRecvError};
 
 use crate::config::Config;
-use crate::state::OverlayState;
+use crate::state::{DanmakuLine, LineKind, OverlayState};
 
 /// Handle to a running danmaku connection. Stops its threads on drop.
 pub struct DanmakuHandle {
@@ -63,6 +66,7 @@ fn run(
     state: Arc<Mutex<OverlayState>>,
     stop: Arc<AtomicBool>,
 ) {
+    let room_id = room_id.trim().to_string();
     if room_id.trim().parse::<u64>().is_err() {
         log::warn!("Invalid room id: {room_id:?}");
         system(&state, format!("无效房间号: {room_id}"));
@@ -88,6 +92,7 @@ fn run(
     set_connected(&state, true);
     system(&state, format!("已连接房间 {room_id}"));
     log::info!("Connected to room {room_id}");
+    let mut history = open_history(&room_id);
 
     // Heartbeat thread
     // polling `stop` frequently so reconnect is responsive.
@@ -131,7 +136,7 @@ fn run(
             break;
         }
         match rx.try_recv() {
-            Ok(msg) => apply(msg, &state),
+            Ok(msg) => apply(msg, &state, &room_id, history.as_mut()),
             Err(TryRecvError::Empty) => thread::sleep(Duration::from_millis(10)),
             Err(TryRecvError::Closed) => break, // sender dropped
         }
@@ -142,22 +147,40 @@ fn run(
 }
 
 /// Map one [`BiliMessage`] into the overlay state.
-fn apply(msg: BiliMessage, state: &Arc<Mutex<OverlayState>>) {
+fn apply(
+    msg: BiliMessage,
+    state: &Arc<Mutex<OverlayState>>,
+    room_id: &str,
+    history: Option<&mut File>,
+) {
     let Ok(mut s) = state.lock() else { return };
+    if s.room_id.trim() != room_id {
+        return;
+    }
     match msg {
-        BiliMessage::Danmu { user, text } => s.push_danmu(user, text),
-        BiliMessage::Gift { user, gift, num } => s.push_gift(user, gift, num),
+        BiliMessage::Danmu { user, text } => {
+            let line = s.push_danmu(user, text);
+            if let Some(file) = history {
+                append_history(file, &line);
+            }
+        }
+        BiliMessage::Gift { user, gift, num } => {
+            let line = s.push_gift(user, gift, num);
+            if let Some(file) = history {
+                append_history(file, &line);
+            }
+        }
         BiliMessage::OnlineRankCount {
             count,
             online_count,
         } => s.set_online(count, online_count),
         // blivedm has no typed variant for these; parse from the raw JSON.
-        BiliMessage::Raw(v) => apply_raw(&v, &mut s),
+        BiliMessage::Raw(v) => apply_raw(&v, &mut s, history),
         _ => {}
     }
 }
 
-fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
+fn apply_raw(v: &serde_json::Value, s: &mut OverlayState, history: Option<&mut File>) {
     let cmd = v
         .get("cmd")
         .and_then(|c| c.as_str())
@@ -172,7 +195,10 @@ fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
             let msg_type = data.and_then(|d| d.get("msg_type")).and_then(as_u64);
             if msg_type == Some(1) {
                 if let Some(user) = data.and_then(user_name_from_data) {
-                    s.push_enter(user);
+                    let line = s.push_enter(user);
+                    if let Some(file) = history {
+                        append_history(file, &line);
+                    }
                 }
             }
         }
@@ -196,7 +222,10 @@ fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
                 .unwrap_or("")
                 .to_string();
             if !text.is_empty() {
-                s.push_super_chat(user, text);
+                let line = s.push_super_chat(user, text);
+                if let Some(file) = history {
+                    append_history(file, &line);
+                }
             }
         }
         // Guard / membership purchase (上舰).
@@ -211,9 +240,68 @@ fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
                 .and_then(|n| n.as_str())
                 .unwrap_or("舰长")
                 .to_string();
-            s.push_guard(user, format!("开通 {gift}"));
+            let line = s.push_guard(user, format!("开通 {gift}"));
+            if let Some(file) = history {
+                append_history(file, &line);
+            }
         }
         _ => {}
+    }
+}
+
+fn history_path(room_id: &str) -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("history")
+        .join(format!("{room_id}.log"))
+}
+
+fn open_history(room_id: &str) -> Option<File> {
+    let path = history_path(room_id);
+    if let Some(dir) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            log::warn!(
+                "Failed to create danmaku history directory {}: {e}",
+                dir.display()
+            );
+            return None;
+        }
+    }
+
+    match OpenOptions::new().create(true).append(true).open(&path) {
+        Ok(file) => {
+            log::info!("Danmaku history -> {}", path.display());
+            Some(file)
+        }
+        Err(e) => {
+            log::warn!("Failed to open danmaku history {}: {e}", path.display());
+            None
+        }
+    }
+}
+
+fn append_history(file: &mut File, line: &DanmakuLine) {
+    let kind = match line.kind {
+        LineKind::Danmu => "DANMU",
+        LineKind::Gift => "GIFT",
+        LineKind::SuperChat => "SUPER_CHAT",
+        LineKind::Guard => "GUARD",
+        LineKind::Enter => "ENTER",
+        LineKind::System => "SYSTEM",
+    };
+    let text = if line.user.is_empty() {
+        format!("[{}] {:<10} {}\n", line.timestamp, kind, line.text)
+    } else {
+        format!(
+            "[{}] {:<10} {}: {}\n",
+            line.timestamp, kind, line.user, line.text
+        )
+    };
+
+    if let Err(e) = file.write_all(text.as_bytes()) {
+        log::warn!("Failed to write danmaku history: {e}");
     }
 }
 
