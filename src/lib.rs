@@ -9,7 +9,7 @@ use hudhook::windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 mod backend;
 pub mod config;
-mod danmaku;
+pub mod danmaku;
 pub mod logger;
 pub mod state;
 pub mod ui;

@@ -104,7 +104,7 @@ impl OverlayUi {
                     let status = if s.connected { "已连接" } else { "未连接" };
                     let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
                     ui.text(format!(
-                        "{status} 房间 {}  在线 {}",
+                        "{status} | 房间 {} | 在线 {}",
                         s.room_id, s.online_count
                     ));
                     drop(_h);

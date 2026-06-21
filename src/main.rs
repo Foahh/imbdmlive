@@ -1,4 +1,5 @@
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
+use std::thread;
 
 use hudhook::hooks::dx9::ImguiDx9Hooks;
 use hudhook::windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
@@ -84,7 +85,24 @@ fn main() {
 
         let cfg = Config::load();
         let state = OverlayState::shared(cfg.max_lines, cfg.room_id.clone());
-        let (reconnect_tx, _reconnect_rx) = mpsc::channel();
+        let (reconnect_tx, reconnect_rx) = mpsc::channel::<Config>();
+
+        {
+            let state = Arc::clone(&state);
+            let initial = cfg.clone();
+            thread::Builder::new()
+                .name("bdmlive-supervisor".into())
+                .spawn(move || {
+                    let mut handle = imbdmlive::danmaku::start(&initial, Arc::clone(&state));
+                    while let Ok(new_cfg) = reconnect_rx.recv() {
+                        drop(handle);
+                        handle = imbdmlive::danmaku::start(&new_cfg, Arc::clone(&state));
+                    }
+                    drop(handle);
+                })
+                .ok();
+        }
+
         let overlay = OverlayUi::new(state, reconnect_tx, cfg);
 
         // Hook D3D9 Present (must be called after the device exists)
