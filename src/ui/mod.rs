@@ -8,6 +8,7 @@ use hudhook::{ImguiRenderLoop, MessageFilter, RenderContext};
 use crate::config::{Config, toggle_key_to_imgui};
 use crate::state::{LineKind, OverlayState};
 
+mod clipboard;
 mod fonts;
 
 /// Channel the UI uses to ask the supervisor to (re)connect with a new config.
@@ -32,6 +33,10 @@ fn body_color(kind: LineKind) -> [f32; 4] {
         LineKind::Enter => COL_ENTER,
         LineKind::System => COL_SYSTEM,
     }
+}
+
+fn snap_to_tenth(value: f32, min: f32, max: f32) -> f32 {
+    ((value * 10.0).round() / 10.0).clamp(min, max)
 }
 
 pub struct OverlayUi {
@@ -201,8 +206,20 @@ impl OverlayUi {
                     .build();
                 ui.separator();
 
-                ui.slider("不透明度", 0.0, 1.0, &mut self.cfg.opacity);
-                ui.slider("字号", 10.0, 48.0, &mut self.cfg.font_size);
+                if ui
+                    .slider_config("不透明度", 0.0, 1.0)
+                    .display_format("%.1f")
+                    .build(&mut self.cfg.opacity)
+                {
+                    self.cfg.opacity = snap_to_tenth(self.cfg.opacity, 0.0, 1.0);
+                }
+                if ui
+                    .slider_config("字号", 10.0, 48.0)
+                    .display_format("%.1f")
+                    .build(&mut self.cfg.font_size)
+                {
+                    self.cfg.font_size = snap_to_tenth(self.cfg.font_size, 10.0, 48.0);
+                }
                 ui.separator();
 
                 if ui.button("保存") {
@@ -298,6 +315,7 @@ impl OverlayUi {
 
 impl ImguiRenderLoop for OverlayUi {
     fn initialize<'a>(&'a mut self, ctx: &mut Context, _rc: &'a mut dyn RenderContext) {
+        ctx.set_clipboard_backend(clipboard::WindowsClipboard);
         self.font_loaded = fonts::add_system_fonts(ctx, self.cfg.font_size);
     }
 
