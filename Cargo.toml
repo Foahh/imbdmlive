@@ -11,7 +11,7 @@ name = "imbdmui"
 path = "src/main.rs"
 
 [dependencies]
-hudhook = "0.9"
+hudhook = { path = "vendor/hudhook" }
 windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Graphics_Direct3D9",

@@ -320,6 +320,7 @@ impl ImguiRenderLoop for OverlayUi {
     fn initialize<'a>(&'a mut self, ctx: &mut Context, _rc: &'a mut dyn RenderContext) {
         ctx.set_clipboard_backend(clipboard::WindowsClipboard);
         self.font_loaded = fonts::add_system_fonts(ctx, self.cfg.font_size);
+        log::info!("Overlay UI initialized");
     }
 
     fn render(&mut self, ui: &mut Ui) {
