@@ -14,6 +14,8 @@ pub enum LineKind {
     SuperChat,
     /// Guard / membership purchase (上舰).
     Guard,
+    /// User entered the live room.
+    Enter,
     /// Local system / status message (not from the live room).
     System,
 }
@@ -40,6 +42,8 @@ pub struct OverlayState {
     pub rank_count: u64,
     /// Online viewer count (from `ONLINE_RANK_COUNT`).
     pub online_count: u64,
+    /// Current room popularity.
+    pub popularity: u64,
     /// Whether the websocket is believed to be connected.
     pub connected: bool,
     /// Room currently being displayed.
@@ -53,6 +57,7 @@ impl OverlayState {
             max_lines: max_lines.max(1),
             rank_count: 0,
             online_count: 0,
+            popularity: 0,
             connected: false,
             room_id,
         }
@@ -111,6 +116,15 @@ impl OverlayState {
         });
     }
 
+    pub fn push_enter(&mut self, user: String) {
+        self.push(DanmakuLine {
+            kind: LineKind::Enter,
+            timestamp: Self::timestamp(),
+            user,
+            text: "进入直播间".to_string(),
+        });
+    }
+
     pub fn push_system(&mut self, text: impl Into<String>) {
         self.push(DanmakuLine {
             kind: LineKind::System,
@@ -125,11 +139,16 @@ impl OverlayState {
         self.online_count = online_count;
     }
 
+    pub fn set_popularity(&mut self, popularity: u64) {
+        self.popularity = popularity;
+    }
+
     /// Drop all lines and reset counters (used on reconnect to a new room).
     pub fn reset(&mut self, room_id: String) {
         self.lines.clear();
         self.rank_count = 0;
         self.online_count = 0;
+        self.popularity = 0;
         self.connected = false;
         self.room_id = room_id;
     }

@@ -147,7 +147,10 @@ fn apply(msg: BiliMessage, state: &Arc<Mutex<OverlayState>>) {
     match msg {
         BiliMessage::Danmu { user, text } => s.push_danmu(user, text),
         BiliMessage::Gift { user, gift, num } => s.push_gift(user, gift, num),
-        BiliMessage::OnlineRankCount { count, online_count } => s.set_online(count, online_count),
+        BiliMessage::OnlineRankCount {
+            count,
+            online_count,
+        } => s.set_online(count, online_count),
         // blivedm has no typed variant for these; parse from the raw JSON.
         BiliMessage::Raw(v) => apply_raw(&v, &mut s),
         _ => {}
@@ -155,9 +158,30 @@ fn apply(msg: BiliMessage, state: &Arc<Mutex<OverlayState>>) {
 }
 
 fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
-    let cmd = v.get("cmd").and_then(|c| c.as_str()).unwrap_or("");
+    let cmd = v
+        .get("cmd")
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("");
     let data = v.get("data");
     match cmd {
+        // User interaction. msg_type == 1 is a room-enter event.
+        "INTERACT_WORD" | "INTERACT_WORD_V2" => {
+            let msg_type = data.and_then(|d| d.get("msg_type")).and_then(as_u64);
+            if msg_type == Some(1) {
+                if let Some(user) = data.and_then(user_name_from_data) {
+                    s.push_enter(user);
+                }
+            }
+        }
+        // Watched/popularity counter shown by the room.
+        "WATCHED_CHANGE" => {
+            if let Some(popularity) = data.and_then(|d| d.get("num")).and_then(as_u64) {
+                s.set_popularity(popularity);
+            }
+        }
         // Super Chat (醒目留言).
         "SUPER_CHAT_MESSAGE" => {
             let user = data
@@ -191,4 +215,24 @@ fn apply_raw(v: &serde_json::Value, s: &mut OverlayState) {
         }
         _ => {}
     }
+}
+
+fn as_u64(v: &serde_json::Value) -> Option<u64> {
+    v.as_u64()
+        .or_else(|| v.as_i64().and_then(|n| u64::try_from(n).ok()))
+        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+}
+
+fn user_name_from_data(data: &serde_json::Value) -> Option<String> {
+    data.get("uname")
+        .and_then(|n| n.as_str())
+        .or_else(|| data.get("username").and_then(|n| n.as_str()))
+        .or_else(|| {
+            data.get("uinfo")
+                .and_then(|u| u.get("base"))
+                .and_then(|b| b.get("name"))
+                .and_then(|n| n.as_str())
+        })
+        .filter(|name| !name.is_empty())
+        .map(ToString::to_string)
 }

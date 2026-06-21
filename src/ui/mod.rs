@@ -20,6 +20,7 @@ const COL_DANMU: [f32; 4] = [0.95, 0.95, 0.95, 1.0];
 const COL_GIFT: [f32; 4] = [1.0, 0.62, 0.25, 1.0];
 const COL_SUPERCHAT: [f32; 4] = [1.0, 0.84, 0.10, 1.0];
 const COL_GUARD: [f32; 4] = [0.40, 0.80, 1.0, 1.0];
+const COL_ENTER: [f32; 4] = [0.55, 0.90, 0.55, 1.0];
 const COL_SYSTEM: [f32; 4] = [0.60, 0.60, 0.60, 1.0];
 
 fn body_color(kind: LineKind) -> [f32; 4] {
@@ -28,6 +29,7 @@ fn body_color(kind: LineKind) -> [f32; 4] {
         LineKind::Gift => COL_GIFT,
         LineKind::SuperChat => COL_SUPERCHAT,
         LineKind::Guard => COL_GUARD,
+        LineKind::Enter => COL_ENTER,
         LineKind::System => COL_SYSTEM,
     }
 }
@@ -108,8 +110,8 @@ impl OverlayUi {
                     };
                     let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
                     ui.text(format!(
-                        "{status} | 房间 {} | 在线 {}",
-                        s.room_id, s.online_count
+                        "{status} | 房间 {} | 在线 {} | 人气 {}",
+                        s.room_id, s.online_count, s.popularity
                     ));
                     drop(_h);
                     ui.separator();
