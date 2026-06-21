@@ -145,13 +145,13 @@ impl OverlayUi {
             .collapsible(false)
             .build(|| {
                 ui.input_text("房间号", &mut self.room_buf).build();
-                ui.input_text("Cookies (可选)", &mut self.cookies_buf)
+                ui.input_text("Cookies", &mut self.cookies_buf)
                     .password(false)
                     .build();
                 ui.separator();
 
                 ui.slider("不透明度", 0.0, 1.0, &mut self.cfg.opacity);
-                ui.slider("字号 (重启生效)", 10.0, 48.0, &mut self.cfg.font_size);
+                ui.slider("字号", 10.0, 48.0, &mut self.cfg.font_size);
                 ui.slider("最大行数", 10, 1000, &mut self.max_lines_edit);
                 ui.separator();
 
@@ -176,7 +176,7 @@ impl OverlayUi {
                 ui.text(if connected { "状态: 已连接" } else { "状态: 未连接" });
                 if !self.font_loaded {
                     let _c = ui.push_style_color(StyleColor::Text, COL_GIFT);
-                    ui.text_wrapped("警告: 未能加载中文字体, 中文可能显示为方块");
+                    ui.text_wrapped("警告: 未能加载中文字体");
                 }
             });
     }
