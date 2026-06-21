@@ -1,12 +1,12 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
+use hudhook::Hudhook;
 use hudhook::hooks::dx9::ImguiDx9Hooks;
 use hudhook::windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use hudhook::windows::Win32::Graphics::Direct3D9::*;
 use hudhook::windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use hudhook::windows::Win32::UI::WindowsAndMessaging::*;
-use hudhook::Hudhook;
 
 use imbdmlive::config::Config;
 use imbdmlive::state::OverlayState;
@@ -123,7 +123,16 @@ fn main() {
                 DispatchMessageW(&msg);
             }
 
-            device.Clear(0, std::ptr::null(), D3DCLEAR_TARGET as u32, 0xFF_1A_1A_2E, 1.0, 0).ok();
+            device
+                .Clear(
+                    0,
+                    std::ptr::null(),
+                    D3DCLEAR_TARGET as u32,
+                    0xFF_1A_1A_2E,
+                    1.0,
+                    0,
+                )
+                .ok();
             device.BeginScene().ok();
             device.EndScene().ok();
             device

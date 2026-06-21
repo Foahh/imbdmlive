@@ -9,7 +9,19 @@ struct Logger {
     file: Mutex<Option<File>>,
 }
 
-static LOGGER: Logger = Logger { file: Mutex::new(None) };
+static LOGGER: Logger = Logger {
+    file: Mutex::new(None),
+};
+
+fn redact_message(target: &str, message: String) -> String {
+    if target == "blivedm::client::auth" && message.contains("response") {
+        if let Some((prefix, _)) = message.split_once(':') {
+            return format!("{prefix}: <redacted>");
+        }
+        return "<redacted response>".to_string();
+    }
+    message
+}
 
 /// Log file path: next to the host executable.
 pub fn log_path() -> PathBuf {
@@ -48,6 +60,7 @@ impl log::Log for Logger {
 
     fn log(&self, record: &log::Record) {
         let t = unsafe { GetLocalTime() };
+        let message = redact_message(record.target(), record.args().to_string());
         let line = format!(
             "[{:04}/{:02}/{:02} {:02}:{:02}:{:02}.{:03}] {:<5} {}: {}\n",
             t.wYear,
@@ -59,7 +72,7 @@ impl log::Log for Logger {
             t.wMilliseconds,
             record.level(),
             record.target(),
-            record.args(),
+            message,
         );
 
         let mut out = std::io::stdout();

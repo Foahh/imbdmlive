@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use hudhook::imgui::{Condition, Context, Io, StyleColor, Ui, WindowFlags};
 use hudhook::{ImguiRenderLoop, MessageFilter, RenderContext};
 
-use crate::config::{toggle_key_to_imgui, Config};
+use crate::config::{Config, toggle_key_to_imgui};
 use crate::state::{LineKind, OverlayState};
 
 mod fonts;
@@ -101,7 +101,11 @@ impl OverlayUi {
             .flags(flags)
             .build(|| {
                 if let Ok(s) = state.lock() {
-                    let status = if s.connected { "已连接" } else { "未连接" };
+                    let status = if s.connected {
+                        "已连接"
+                    } else {
+                        "未连接"
+                    };
                     let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
                     ui.text(format!(
                         "{status} | 房间 {} | 在线 {}",
@@ -114,10 +118,10 @@ impl OverlayUi {
                     for line in &s.lines {
                         if line.user.is_empty() {
                             let _c = ui.push_style_color(StyleColor::Text, body_color(line.kind));
-                            ui.text_wrapped(&line.text);
+                            ui.text_wrapped(format!("[{}] {}", line.timestamp, line.text));
                         } else {
                             let _n = ui.push_style_color(StyleColor::Text, COL_NAME);
-                            ui.text(format!("{}：", line.user));
+                            ui.text(format!("[{}] {}:", line.timestamp, line.user));
                             drop(_n);
                             ui.same_line();
                             let _c = ui.push_style_color(StyleColor::Text, body_color(line.kind));
@@ -180,7 +184,7 @@ impl OverlayUi {
             });
     }
 
-    /// Push the edited values into `self.cfg`, 
+    /// Push the edited values into `self.cfg`,
     /// persist to disk, and optionally request a reconnect.
     fn apply_and_save(&mut self, reconnect: bool) {
         self.cfg.room_id = self.room_buf.trim().to_string();

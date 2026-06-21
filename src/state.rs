@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
+use hudhook::windows::Win32::System::SystemInformation::GetLocalTime;
+
 /// What kind of line a [`DanmakuLine`] is.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LineKind {
@@ -20,6 +22,8 @@ pub enum LineKind {
 #[derive(Clone)]
 pub struct DanmakuLine {
     pub kind: LineKind,
+    /// Local time when this line was received, formatted as `HH:MM:SS`.
+    pub timestamp: String,
     /// Sender name (empty for [`LineKind::System`]).
     pub user: String,
     /// Message body / formatted gift text.
@@ -59,6 +63,11 @@ impl OverlayState {
         Arc::new(Mutex::new(Self::new(max_lines, room_id)))
     }
 
+    fn timestamp() -> String {
+        let t = unsafe { GetLocalTime() };
+        format!("{:02}:{:02}:{:02}", t.wHour, t.wMinute, t.wSecond)
+    }
+
     fn push(&mut self, line: DanmakuLine) {
         if self.lines.len() >= self.max_lines {
             self.lines.pop_front();
@@ -67,27 +76,48 @@ impl OverlayState {
     }
 
     pub fn push_danmu(&mut self, user: String, text: String) {
-        self.push(DanmakuLine { kind: LineKind::Danmu, user, text });
+        self.push(DanmakuLine {
+            kind: LineKind::Danmu,
+            timestamp: Self::timestamp(),
+            user,
+            text,
+        });
     }
 
     pub fn push_gift(&mut self, user: String, gift: String, num: String) {
         self.push(DanmakuLine {
             kind: LineKind::Gift,
+            timestamp: Self::timestamp(),
             user,
             text: format!("送出 {} × {}", gift, num),
         });
     }
 
     pub fn push_super_chat(&mut self, user: String, text: String) {
-        self.push(DanmakuLine { kind: LineKind::SuperChat, user, text });
+        self.push(DanmakuLine {
+            kind: LineKind::SuperChat,
+            timestamp: Self::timestamp(),
+            user,
+            text,
+        });
     }
 
     pub fn push_guard(&mut self, user: String, text: String) {
-        self.push(DanmakuLine { kind: LineKind::Guard, user, text });
+        self.push(DanmakuLine {
+            kind: LineKind::Guard,
+            timestamp: Self::timestamp(),
+            user,
+            text,
+        });
     }
 
     pub fn push_system(&mut self, text: impl Into<String>) {
-        self.push(DanmakuLine { kind: LineKind::System, user: String::new(), text: text.into() });
+        self.push(DanmakuLine {
+            kind: LineKind::System,
+            timestamp: Self::timestamp(),
+            user: String::new(),
+            text: text.into(),
+        });
     }
 
     pub fn set_online(&mut self, count: u64, online_count: u64) {

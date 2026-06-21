@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, OnceLock};
 use std::sync::mpsc;
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
 use hudhook::windows::Win32::Foundation::HINSTANCE;
