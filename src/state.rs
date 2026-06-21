@@ -34,10 +34,8 @@ pub struct DanmakuLine {
 
 /// Mutable overlay state shared across threads as `Arc<Mutex<OverlayState>>`.
 pub struct OverlayState {
-    /// Recent lines, oldest first, capped at `max_lines`.
+    /// Recent lines, oldest first.
     pub lines: VecDeque<DanmakuLine>,
-    /// Max number of retained lines (mirrors `Config::max_lines`).
-    pub max_lines: usize,
     /// High-energy rank count (from `ONLINE_RANK_COUNT`).
     pub rank_count: u64,
     /// Online viewer count (from `ONLINE_RANK_COUNT`).
@@ -51,10 +49,9 @@ pub struct OverlayState {
 }
 
 impl OverlayState {
-    pub fn new(max_lines: usize, room_id: String) -> Self {
+    pub fn new(room_id: String) -> Self {
         Self {
-            lines: VecDeque::with_capacity(max_lines.min(1024)),
-            max_lines: max_lines.max(1),
+            lines: VecDeque::new(),
             rank_count: 0,
             online_count: 0,
             popularity: 0,
@@ -64,8 +61,8 @@ impl OverlayState {
     }
 
     /// Wrap in the shared handle used everywhere else.
-    pub fn shared(max_lines: usize, room_id: String) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self::new(max_lines, room_id)))
+    pub fn shared(room_id: String) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self::new(room_id)))
     }
 
     fn timestamp() -> String {
@@ -74,9 +71,6 @@ impl OverlayState {
     }
 
     fn push(&mut self, line: DanmakuLine) {
-        if self.lines.len() >= self.max_lines {
-            self.lines.pop_front();
-        }
         self.lines.push_back(line);
     }
 

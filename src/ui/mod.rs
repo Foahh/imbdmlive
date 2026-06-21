@@ -45,12 +45,13 @@ pub struct OverlayUi {
     room_buf: String,
     cookies_buf: String,
     log_level_buf: String,
-    max_lines_edit: i32,
 
     // Shared with `message_filter` (which only gets `&self`).
     config_open: AtomicBool,
     toggle_key: hudhook::imgui::Key,
     font_loaded: bool,
+    danmaku_at_bottom: bool,
+    scroll_to_bottom_requested: bool,
 }
 
 impl OverlayUi {
@@ -64,10 +65,11 @@ impl OverlayUi {
             room_buf: cfg.room_id.clone(),
             cookies_buf: cfg.cookies.clone().unwrap_or_default(),
             log_level_buf: cfg.log_level.clone(),
-            max_lines_edit: cfg.max_lines as i32,
             config_open: AtomicBool::new(false),
             toggle_key,
             font_loaded: false,
+            danmaku_at_bottom: true,
+            scroll_to_bottom_requested: false,
             state,
             reconnect_tx: Mutex::new(reconnect_tx),
             cfg,
@@ -84,7 +86,6 @@ impl OverlayUi {
         };
         let mut flags = WindowFlags::NO_TITLE_BAR
             | WindowFlags::NO_COLLAPSE
-            | WindowFlags::NO_SCROLLBAR
             | WindowFlags::NO_SAVED_SETTINGS
             | WindowFlags::NO_FOCUS_ON_APPEARING
             | WindowFlags::NO_BRING_TO_FRONT_ON_FOCUS;
@@ -97,6 +98,17 @@ impl OverlayUi {
 
         let state = Arc::clone(&self.state);
         let mut new_geometry: Option<([f32; 2], [f32; 2])> = None;
+        let show_jump_button = !self.danmaku_at_bottom;
+        let jump_button_height = ui.frame_height_with_spacing();
+        let child_height = if show_jump_button {
+            -jump_button_height
+        } else {
+            0.0
+        };
+        let force_scroll_to_bottom = self.scroll_to_bottom_requested;
+        self.scroll_to_bottom_requested = false;
+        let mut danmaku_at_bottom = self.danmaku_at_bottom || force_scroll_to_bottom;
+        let mut jump_to_bottom_clicked = false;
 
         ui.window("BDMLive##danmaku")
             .position(self.cfg.pos, cond)
@@ -118,23 +130,38 @@ impl OverlayUi {
                     drop(_h);
                     ui.separator();
 
-                    let at_bottom = ui.scroll_y() >= ui.scroll_max_y() - 1.0;
-                    for line in &s.lines {
-                        if line.user.is_empty() {
-                            let _c = ui.push_style_color(StyleColor::Text, body_color(line.kind));
-                            ui.text_wrapped(format!("[{}] {}", line.timestamp, line.text));
-                        } else {
-                            let _n = ui.push_style_color(StyleColor::Text, COL_NAME);
-                            ui.text(format!("[{}] {}:", line.timestamp, line.user));
-                            drop(_n);
-                            ui.same_line();
-                            let _c = ui.push_style_color(StyleColor::Text, body_color(line.kind));
-                            ui.text_wrapped(&line.text);
-                        }
-                    }
-                    // Keep the newest line in view unless the user scrolled up.
-                    if at_bottom {
-                        ui.set_scroll_here_y_with_ratio(1.0);
+                    ui.child_window("##danmaku-lines")
+                        .size([0.0, child_height])
+                        .border(false)
+                        .scroll_bar(true)
+                        .scrollable(true)
+                        .build(|| {
+                            let at_bottom = ui.scroll_y() >= ui.scroll_max_y() - 1.0;
+                            danmaku_at_bottom = at_bottom || force_scroll_to_bottom;
+                            for line in &s.lines {
+                                if line.user.is_empty() {
+                                    let _c = ui
+                                        .push_style_color(StyleColor::Text, body_color(line.kind));
+                                    ui.text_wrapped(format!("[{}] {}", line.timestamp, line.text));
+                                } else {
+                                    let _n = ui.push_style_color(StyleColor::Text, COL_NAME);
+                                    ui.text(format!("[{}] {}:", line.timestamp, line.user));
+                                    drop(_n);
+                                    ui.same_line();
+                                    let _c = ui
+                                        .push_style_color(StyleColor::Text, body_color(line.kind));
+                                    ui.text_wrapped(&line.text);
+                                }
+                            }
+                            // Keep the newest line in view unless the user scrolled up.
+                            if at_bottom || force_scroll_to_bottom {
+                                ui.set_scroll_here_y_with_ratio(1.0);
+                            }
+                        });
+
+                    if show_jump_button && !danmaku_at_bottom && ui.button("跳到底部") {
+                        jump_to_bottom_clicked = true;
+                        danmaku_at_bottom = true;
                     }
                 }
 
@@ -146,6 +173,10 @@ impl OverlayUi {
         if let Some((pos, size)) = new_geometry {
             self.cfg.pos = pos;
             self.cfg.size = size;
+        }
+        self.danmaku_at_bottom = danmaku_at_bottom;
+        if jump_to_bottom_clicked {
+            self.scroll_to_bottom_requested = true;
         }
     }
 
@@ -164,7 +195,6 @@ impl OverlayUi {
 
                 ui.slider("不透明度", 0.0, 1.0, &mut self.cfg.opacity);
                 ui.slider("字号", 10.0, 48.0, &mut self.cfg.font_size);
-                ui.slider("最大行数", 10, 1000, &mut self.max_lines_edit);
                 ui.separator();
 
                 if ui.button("保存") {
@@ -199,7 +229,6 @@ impl OverlayUi {
         } else {
             Some(cookies.to_string())
         };
-        self.cfg.max_lines = self.max_lines_edit.max(1) as usize;
         self.cfg.log_level = self.log_level_buf.trim().to_ascii_lowercase();
         match crate::config::parse_log_level(&self.cfg.log_level) {
             Some(level) => crate::logger::set_level(level),
@@ -208,14 +237,6 @@ impl OverlayUi {
                 self.log_level_buf = self.cfg.log_level.clone();
                 crate::logger::set_level(self.cfg.log_level_filter());
                 log::warn!("Invalid log level; using {}", self.cfg.log_level);
-            }
-        }
-
-        // Apply live visual settings immediately.
-        if let Ok(mut s) = self.state.lock() {
-            s.max_lines = self.cfg.max_lines;
-            while s.lines.len() > s.max_lines {
-                s.lines.pop_front();
             }
         }
 

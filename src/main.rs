@@ -86,7 +86,7 @@ fn main() {
         .expect("CreateDevice failed");
         let device = device.unwrap();
 
-        let state = OverlayState::shared(cfg.max_lines, cfg.room_id.clone());
+        let state = OverlayState::shared(cfg.room_id.clone());
         let (reconnect_tx, reconnect_rx) = mpsc::channel::<Config>();
 
         {

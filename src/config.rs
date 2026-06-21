@@ -23,8 +23,6 @@ pub struct Config {
     pub pos: [f32; 2],
     /// Overlay window size in pixels.
     pub size: [f32; 2],
-    /// Max retained danmaku lines.
-    pub max_lines: usize,
 
     /// Key that toggles the config window.
     /// One of the names in [`toggle_key_to_imgui`] (default `F8`).
@@ -43,7 +41,6 @@ impl Default for Config {
             opacity: 0.55,
             pos: [16.0, 16.0],
             size: [420.0, 320.0],
-            max_lines: 200,
             toggle_key: "F8".to_string(),
             log_level: "info".to_string(),
         }
