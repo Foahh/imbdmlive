@@ -99,12 +99,6 @@ impl OverlayUi {
         let state = Arc::clone(&self.state);
         let mut new_geometry: Option<([f32; 2], [f32; 2])> = None;
         let show_jump_button = !self.danmaku_at_bottom;
-        let jump_button_height = ui.frame_height_with_spacing();
-        let child_height = if show_jump_button {
-            -jump_button_height
-        } else {
-            0.0
-        };
         let force_scroll_to_bottom = self.scroll_to_bottom_requested;
         self.scroll_to_bottom_requested = false;
         let mut danmaku_at_bottom = self.danmaku_at_bottom || force_scroll_to_bottom;
@@ -122,16 +116,30 @@ impl OverlayUi {
                     } else {
                         "未连接"
                     };
-                    let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
-                    ui.text(format!(
+                    let status_text = format!(
                         "{status} | 房间 {} | 在线 {} | 人气 {}",
                         s.room_id, s.online_count, s.popularity
-                    ));
+                    );
+                    ui.align_text_to_frame_padding();
+                    let _h = ui.push_style_color(StyleColor::Text, COL_HEADER);
+                    ui.text(status_text);
                     drop(_h);
+
+                    if show_jump_button {
+                        let button_size = ui.frame_height();
+                        let button_x = (ui.window_content_region_max()[0] - button_size)
+                            .max(ui.cursor_pos()[0]);
+                        ui.same_line_with_pos(button_x);
+                        if ui.button_with_size("↓##jump-to-bottom", [button_size, 0.0]) {
+                            jump_to_bottom_clicked = true;
+                            danmaku_at_bottom = true;
+                        }
+                    }
+
                     ui.separator();
 
                     ui.child_window("##danmaku-lines")
-                        .size([0.0, child_height])
+                        .size([0.0, 0.0])
                         .border(false)
                         .scroll_bar(true)
                         .scrollable(true)
@@ -139,7 +147,13 @@ impl OverlayUi {
                             let at_bottom = ui.scroll_y() >= ui.scroll_max_y() - 1.0;
                             danmaku_at_bottom = at_bottom || force_scroll_to_bottom;
                             for line in &s.lines {
-                                if line.user.is_empty() {
+                                if line.kind == LineKind::Enter {
+                                    let _c = ui.push_style_color(StyleColor::Text, COL_SYSTEM);
+                                    ui.text_wrapped(format!(
+                                        "[{}] {}: {}",
+                                        line.timestamp, line.user, line.text
+                                    ));
+                                } else if line.user.is_empty() {
                                     let _c = ui
                                         .push_style_color(StyleColor::Text, body_color(line.kind));
                                     ui.text_wrapped(format!("[{}] {}", line.timestamp, line.text));
@@ -158,11 +172,6 @@ impl OverlayUi {
                                 ui.set_scroll_here_y_with_ratio(1.0);
                             }
                         });
-
-                    if show_jump_button && !danmaku_at_bottom && ui.button("跳到底部") {
-                        jump_to_bottom_clicked = true;
-                        danmaku_at_bottom = true;
-                    }
                 }
 
                 if config_open {
@@ -190,7 +199,6 @@ impl OverlayUi {
                 ui.input_text("Cookies", &mut self.cookies_buf)
                     .password(false)
                     .build();
-                ui.input_text("日志级别", &mut self.log_level_buf).build();
                 ui.separator();
 
                 ui.slider("不透明度", 0.0, 1.0, &mut self.cfg.opacity);
@@ -212,6 +220,9 @@ impl OverlayUi {
                 } else {
                     "状态: 未连接"
                 });
+                if ui.button("测试消息") {
+                    self.fire_test_messages();
+                }
                 if !self.font_loaded {
                     let _c = ui.push_style_color(StyleColor::Text, COL_GIFT);
                     ui.text_wrapped("警告: 未能加载系统字体");
@@ -255,6 +266,31 @@ impl OverlayUi {
                 .unwrap_or(false);
             if !sent {
                 log::warn!("Reconnect channel closed");
+            }
+        }
+    }
+
+    fn fire_test_messages(&mut self) {
+        if let Ok(mut s) = self.state.lock() {
+            for i in 1..=80 {
+                match i % 6 {
+                    0 => s.push_danmu(
+                        format!("测试用户{i}"),
+                        format!("第 {i} 条普通弹幕，用于测试滚动区域"),
+                    ),
+                    1 => s.push_gift(
+                        format!("测试礼物{i}"),
+                        "辣条".to_string(),
+                        (i % 10 + 1).to_string(),
+                    ),
+                    2 => s.push_super_chat(
+                        format!("测试醒目留言{i}"),
+                        format!("第 {i} 条醒目留言，用于测试滚动定位"),
+                    ),
+                    3 => s.push_guard(format!("测试舰长{i}"), "开通舰长".to_string()),
+                    4 => s.push_enter(format!("测试进场{i}")),
+                    _ => s.push_system(format!("第 {i} 条系统消息，用于测试滚动行为")),
+                }
             }
         }
     }
