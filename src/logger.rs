@@ -37,7 +37,7 @@ pub fn init() {
     if log::set_logger(&LOGGER).is_err() {
         return; // already initialized
     }
-    log::set_max_level(log::LevelFilter::Info);
+    set_level(log::LevelFilter::Info);
 
     if let Ok(f) = OpenOptions::new()
         .create(true)
@@ -51,6 +51,10 @@ pub fn init() {
     }
 
     log::info!("logger initialized -> {}", log_path().display());
+}
+
+pub fn set_level(level: log::LevelFilter) {
+    log::set_max_level(level);
 }
 
 impl log::Log for Logger {

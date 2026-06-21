@@ -26,6 +26,9 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 
 fn main() {
     imbdmlive::logger::init();
+    let cfg = Config::load();
+    imbdmlive::logger::set_level(cfg.log_level_filter());
+    log::info!("Config loaded");
 
     unsafe {
         let hmodule = GetModuleHandleW(None).expect("GetModuleHandleW");
@@ -83,7 +86,6 @@ fn main() {
         .expect("CreateDevice failed");
         let device = device.unwrap();
 
-        let cfg = Config::load();
         let state = OverlayState::shared(cfg.max_lines, cfg.room_id.clone());
         let (reconnect_tx, reconnect_rx) = mpsc::channel::<Config>();
 

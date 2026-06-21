@@ -44,6 +44,7 @@ pub struct OverlayUi {
     // Edit buffers for the config window.
     room_buf: String,
     cookies_buf: String,
+    log_level_buf: String,
     max_lines_edit: i32,
 
     // Shared with `message_filter` (which only gets `&self`).
@@ -62,6 +63,7 @@ impl OverlayUi {
         Self {
             room_buf: cfg.room_id.clone(),
             cookies_buf: cfg.cookies.clone().unwrap_or_default(),
+            log_level_buf: cfg.log_level.clone(),
             max_lines_edit: cfg.max_lines as i32,
             config_open: AtomicBool::new(false),
             toggle_key,
@@ -157,6 +159,7 @@ impl OverlayUi {
                 ui.input_text("Cookies", &mut self.cookies_buf)
                     .password(false)
                     .build();
+                ui.input_text("日志级别", &mut self.log_level_buf).build();
                 ui.separator();
 
                 ui.slider("不透明度", 0.0, 1.0, &mut self.cfg.opacity);
@@ -197,6 +200,16 @@ impl OverlayUi {
             Some(cookies.to_string())
         };
         self.cfg.max_lines = self.max_lines_edit.max(1) as usize;
+        self.cfg.log_level = self.log_level_buf.trim().to_ascii_lowercase();
+        match crate::config::parse_log_level(&self.cfg.log_level) {
+            Some(level) => crate::logger::set_level(level),
+            None => {
+                self.cfg.log_level = Config::default().log_level;
+                self.log_level_buf = self.cfg.log_level.clone();
+                crate::logger::set_level(self.cfg.log_level_filter());
+                log::warn!("Invalid log level; using {}", self.cfg.log_level);
+            }
+        }
 
         // Apply live visual settings immediately.
         if let Ok(mut s) = self.state.lock() {

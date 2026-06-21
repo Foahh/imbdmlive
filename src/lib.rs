@@ -49,7 +49,8 @@ fn start_once() {
 
 fn bootstrap() {
     let cfg = config::Config::load();
-    log::info!("Config loaded (room {})", cfg.room_id);
+    logger::set_level(cfg.log_level_filter());
+    log::info!("Config loaded");
 
     let state = state::OverlayState::shared(cfg.max_lines, cfg.room_id.clone());
     let (reconnect_tx, reconnect_rx) = mpsc::channel::<config::Config>();

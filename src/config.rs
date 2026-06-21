@@ -29,6 +29,9 @@ pub struct Config {
     /// Key that toggles the config window.
     /// One of the names in [`toggle_key_to_imgui`] (default `F8`).
     pub toggle_key: String,
+
+    /// Global log level. One of: off, error, warn, info, debug, trace.
+    pub log_level: String,
 }
 
 impl Default for Config {
@@ -42,6 +45,7 @@ impl Default for Config {
             size: [420.0, 320.0],
             max_lines: 200,
             toggle_key: "F8".to_string(),
+            log_level: "info".to_string(),
         }
     }
 }
@@ -83,6 +87,22 @@ impl Config {
         let path = Self::path();
         let text = toml::to_string_pretty(self).map_err(|e| e.to_string())?;
         std::fs::write(&path, text).map_err(|e| format!("write {}: {e}", path.display()))
+    }
+
+    pub fn log_level_filter(&self) -> log::LevelFilter {
+        parse_log_level(&self.log_level).unwrap_or(log::LevelFilter::Info)
+    }
+}
+
+pub fn parse_log_level(level: &str) -> Option<log::LevelFilter> {
+    match level.trim().to_ascii_lowercase().as_str() {
+        "off" => Some(log::LevelFilter::Off),
+        "error" => Some(log::LevelFilter::Error),
+        "warn" | "warning" => Some(log::LevelFilter::Warn),
+        "info" => Some(log::LevelFilter::Info),
+        "debug" => Some(log::LevelFilter::Debug),
+        "trace" => Some(log::LevelFilter::Trace),
+        _ => None,
     }
 }
 
