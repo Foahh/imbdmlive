@@ -5,6 +5,40 @@ use serde::{Deserialize, Serialize};
 /// File name written next to the host `.exe`.
 const CONFIG_FILE: &str = "imbdmlive.toml";
 
+/// Corner / edge of the screen the overlay window is pinned to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Anchor {
+    #[default]
+    TopLeft,
+    Top,
+    TopRight,
+    Left,
+    Center,
+    Right,
+    BottomLeft,
+    Bottom,
+    BottomRight,
+}
+
+impl Anchor {
+    /// Compute the overlay window's top-left position in pixels.
+    pub fn window_pos(self, display: [f32; 2], size: [f32; 2], offset: [f32; 2]) -> [f32; 2] {
+        use Anchor::*;
+        let x = match self {
+            TopLeft | Left | BottomLeft => offset[0],
+            Top | Center | Bottom => (display[0] - size[0]) / 2.0 + offset[0],
+            TopRight | Right | BottomRight => display[0] - size[0] - offset[0],
+        };
+        let y = match self {
+            TopLeft | Top | TopRight => offset[1],
+            Left | Center | Right => (display[1] - size[1]) / 2.0 + offset[1],
+            BottomLeft | Bottom | BottomRight => display[1] - size[1] - offset[1],
+        };
+        [x, y]
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -19,14 +53,12 @@ pub struct Config {
 
     /// Overlay window background opacity (0.0–1.0).
     pub opacity: f32,
-    /// Overlay window top-left position in pixels.
-    pub pos: [f32; 2],
+    /// Corner / edge the overlay window is pinned to.
+    pub anchor: Anchor,
+    /// Pixel offset from the anchored edge/corner (inward).
+    pub offset: [f32; 2],
     /// Overlay window size in pixels.
     pub size: [f32; 2],
-
-    /// Key that toggles the config window.
-    /// One of the names in [`toggle_key_to_imgui`] (default `Insert`).
-    pub toggle_key: String,
 
     /// Global log level. One of: off, error, warn, info, debug, trace.
     pub log_level: String,
@@ -39,16 +71,16 @@ impl Default for Config {
             cookies: None,
             font_size: 20.0,
             opacity: 0.55,
-            pos: [16.0, 16.0],
+            anchor: Anchor::TopLeft,
+            offset: [16.0, 16.0],
             size: [420.0, 320.0],
-            toggle_key: "Insert".to_string(),
             log_level: "info".to_string(),
         }
     }
 }
 
 impl Config {
-    /// Directory of the host executable; the config lives here.
+    /// Directory of the host executable, where the config file is stored.
     fn dir() -> PathBuf {
         std::env::current_exe()
             .ok()
@@ -103,29 +135,3 @@ pub fn parse_log_level(level: &str) -> Option<log::LevelFilter> {
     }
 }
 
-/// Map a configured key name to an imgui [`hudhook::imgui::Key`].
-/// Returns `None` for unknown names.
-pub fn toggle_key_to_imgui(name: &str) -> Option<hudhook::imgui::Key> {
-    use hudhook::imgui::Key;
-    let key = match name.trim().to_ascii_uppercase().as_str() {
-        "F1" => Key::F1,
-        "F2" => Key::F2,
-        "F3" => Key::F3,
-        "F4" => Key::F4,
-        "F5" => Key::F5,
-        "F6" => Key::F6,
-        "F7" => Key::F7,
-        "F8" => Key::F8,
-        "F9" => Key::F9,
-        "F10" => Key::F10,
-        "F11" => Key::F11,
-        "F12" => Key::F12,
-        "INSERT" | "INS" => Key::Insert,
-        "HOME" => Key::Home,
-        "END" => Key::End,
-        "PAGEUP" | "PGUP" => Key::PageUp,
-        "PAGEDOWN" | "PGDN" => Key::PageDown,
-        _ => return None,
-    };
-    Some(key)
-}

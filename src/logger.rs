@@ -39,15 +39,10 @@ pub fn init() {
     }
     set_level(log::LevelFilter::Info);
 
-    if let Ok(f) = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(log_path())
+    if let Ok(f) = OpenOptions::new().create(true).write(true).truncate(true).open(log_path())
+        && let Ok(mut guard) = LOGGER.file.lock()
     {
-        if let Ok(mut guard) = LOGGER.file.lock() {
-            *guard = Some(f);
-        }
+        *guard = Some(f);
     }
 
     log::info!("logger initialized -> {}", log_path().display());
@@ -66,14 +61,13 @@ impl log::Log for Logger {
         let t = unsafe { GetLocalTime() };
         let message = redact_message(record.target(), record.args().to_string());
         let line = format!(
-            "[{:04}/{:02}/{:02} {:02}:{:02}:{:02}.{:03}] {:<5} {}: {}\n",
+            "[{:04}/{:02}/{:02} {:02}:{:02}:{:02}] {:<5} {}: {}\n",
             t.wYear,
             t.wMonth,
             t.wDay,
             t.wHour,
             t.wMinute,
             t.wSecond,
-            t.wMilliseconds,
             record.level(),
             record.target(),
             message,
@@ -83,19 +77,19 @@ impl log::Log for Logger {
         let _ = out.write_all(line.as_bytes());
         let _ = out.flush();
 
-        if let Ok(mut guard) = self.file.lock() {
-            if let Some(f) = guard.as_mut() {
-                let _ = f.write_all(line.as_bytes());
-                let _ = f.flush();
-            }
+        if let Ok(mut guard) = self.file.lock()
+            && let Some(f) = guard.as_mut()
+        {
+            let _ = f.write_all(line.as_bytes());
+            let _ = f.flush();
         }
     }
 
     fn flush(&self) {
-        if let Ok(mut guard) = self.file.lock() {
-            if let Some(f) = guard.as_mut() {
-                let _ = f.flush();
-            }
+        if let Ok(mut guard) = self.file.lock()
+            && let Some(f) = guard.as_mut()
+        {
+            let _ = f.flush();
         }
     }
 }

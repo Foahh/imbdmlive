@@ -42,7 +42,7 @@ pub struct OverlayState {
     pub online_count: u64,
     /// Current room popularity.
     pub popularity: u64,
-    /// Whether the websocket is believed to be connected.
+    /// Whether the websocket is connected.
     pub connected: bool,
     /// Room currently being displayed.
     pub room_id: String,
@@ -60,7 +60,7 @@ impl OverlayState {
         }
     }
 
-    /// Wrap in the shared handle used everywhere else.
+    /// Wrap in a shared `Arc<Mutex<Self>>`.
     pub fn shared(room_id: String) -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self::new(room_id)))
     }
@@ -136,15 +136,5 @@ impl OverlayState {
 
     pub fn set_popularity(&mut self, popularity: u64) {
         self.popularity = popularity;
-    }
-
-    /// Drop all lines and reset counters (used on reconnect to a new room).
-    pub fn reset(&mut self, room_id: String) {
-        self.lines.clear();
-        self.rank_count = 0;
-        self.online_count = 0;
-        self.popularity = 0;
-        self.connected = false;
-        self.room_id = room_id;
     }
 }

@@ -1,4 +1,4 @@
-use hudhook::imgui::{Context, FontConfig, FontGlyphRanges, FontSource};
+use imgui::{Context, FontConfig, FontGlyphRanges, FontSource};
 
 const SYMBOL_GLYPH_RANGES: &[u32] = &[
     0x2000, 0x206F, // General punctuation

@@ -94,8 +94,7 @@ fn run(
     log::info!("Connected to room {room_id}");
     let mut history = open_history(&room_id);
 
-    // Heartbeat thread
-    // polling `stop` frequently so reconnect is responsive.
+    // Heartbeat thread. Polls `stop` frequently for responsive shutdown.
     {
         let client = Arc::clone(&client);
         let stop = Arc::clone(&stop);
@@ -113,17 +112,16 @@ fn run(
         });
     }
 
-    // Receive thread
-    // pull frames off the socket.
+    // Receive thread. Reads frames from the socket.
     {
         let client = Arc::clone(&client);
         let stop = Arc::clone(&stop);
         thread::spawn(move || {
             while !stop.load(Ordering::SeqCst) {
-                if let Ok(mut c) = client.lock() {
-                    if let Err(e) = c.receive() {
-                        log::debug!("receive: {e}");
-                    }
+                if let Ok(mut c) = client.lock()
+                    && let Err(e) = c.receive()
+                {
+                    log::debug!("receive: {e}");
                 }
                 thread::sleep(Duration::from_millis(10));
             }
@@ -193,12 +191,12 @@ fn apply_raw(v: &serde_json::Value, s: &mut OverlayState, history: Option<&mut F
         // User interaction. msg_type == 1 is a room-enter event.
         "INTERACT_WORD" | "INTERACT_WORD_V2" => {
             let msg_type = data.and_then(|d| d.get("msg_type")).and_then(as_u64);
-            if msg_type == Some(1) {
-                if let Some(user) = data.and_then(user_name_from_data) {
-                    let line = s.push_enter(user);
-                    if let Some(file) = history {
-                        append_history(file, &line);
-                    }
+            if msg_type == Some(1)
+                && let Some(user) = data.and_then(user_name_from_data)
+            {
+                let line = s.push_enter(user);
+                if let Some(file) = history {
+                    append_history(file, &line);
                 }
             }
         }
@@ -254,21 +252,11 @@ fn history_path(room_id: &str) -> PathBuf {
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("history")
-        .join(format!("{room_id}.log"))
+        .join(format!("imbdmlive.{room_id}.log"))
 }
 
 fn open_history(room_id: &str) -> Option<File> {
     let path = history_path(room_id);
-    if let Some(dir) = path.parent() {
-        if let Err(e) = std::fs::create_dir_all(dir) {
-            log::warn!(
-                "Failed to create danmaku history directory {}: {e}",
-                dir.display()
-            );
-            return None;
-        }
-    }
 
     match OpenOptions::new().create(true).append(true).open(&path) {
         Ok(file) => {
