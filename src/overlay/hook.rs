@@ -3,7 +3,7 @@ use std::mem;
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Direct3D9::{
-    D3D_SDK_VERSION, D3DADAPTER_DEFAULT, D3DCREATE_SOFTWARE_VERTEXPROCESSING, D3DDEVTYPE_NULLREF,
+    D3D_SDK_VERSION, D3DADAPTER_DEFAULT, D3DCREATE_SOFTWARE_VERTEXPROCESSING, D3DDEVTYPE_HAL,
     D3DDISPLAYMODE, D3DFORMAT, D3DPRESENT_PARAMETERS, D3DSWAPEFFECT_DISCARD, Direct3DCreate9,
     IDirect3DDevice9, IDirect3DSwapChain9,
 };
@@ -114,9 +114,14 @@ pub fn get_targets() -> Result<(SwapChainPresentFn, Dx9ResetFn)> {
     let d9 = unsafe { Direct3DCreate9(D3D_SDK_VERSION) }
         .ok_or_else(|| Error::from_hresult(HRESULT(-1)))?;
 
+    fn ctx(step: &'static str) -> impl Fn(Error) -> Error {
+        move |e: Error| Error::new(e.code(), format!("{step}: {e}"))
+    }
+
     let mut display_mode =
         D3DDISPLAYMODE { Width: 0, Height: 0, RefreshRate: 0, Format: D3DFORMAT(0) };
-    unsafe { d9.GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &mut display_mode)? };
+    unsafe { d9.GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &mut display_mode) }
+        .map_err(ctx("GetAdapterDisplayMode"))?;
 
     let mut present_params = D3DPRESENT_PARAMETERS {
         Windowed: BOOL(1),
@@ -129,15 +134,17 @@ pub fn get_targets() -> Result<(SwapChainPresentFn, Dx9ResetFn)> {
     let device: IDirect3DDevice9 = try_out_ptr(|v| unsafe {
         d9.CreateDevice(
             D3DADAPTER_DEFAULT,
-            D3DDEVTYPE_NULLREF,
+            D3DDEVTYPE_HAL,
             dummy_hwnd.hwnd(),
             D3DCREATE_SOFTWARE_VERTEXPROCESSING as u32,
             &mut present_params,
             v,
         )
-    })?;
+    })
+    .map_err(ctx("CreateDevice"))?;
 
-    let swapchain: IDirect3DSwapChain9 = unsafe { device.GetSwapChain(0)? };
+    let swapchain: IDirect3DSwapChain9 =
+        unsafe { device.GetSwapChain(0) }.map_err(ctx("GetSwapChain"))?;
 
     let present_ptr = swapchain.vtable().Present;
     let reset_ptr = device.vtable().Reset;
